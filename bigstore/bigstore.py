@@ -71,7 +71,7 @@ def config(name):
     :return: str or None
     """
     try:
-        return g().config(name, file=os.path.join(toplevel_dir, config_filename))
+        return g().config(name, file=config_filename)
     except git.exc.GitCommandError:
         return None
 
@@ -234,7 +234,7 @@ def push():
                         if not backend.exists(hexdigest):
                             with open(object_filename(hash_function_name, hexdigest)) as file:
                                 if compress:
-                                    with tempfile.TemporaryFile() as compressed_file:
+                                    with tempfile.NamedTemporaryFile() as compressed_file:
                                         compressor = bz2.BZ2Compressor()
                                         for line in file:
                                             compressed_file.write(compressor.compress(line))
@@ -322,9 +322,11 @@ def pull():
 
                         break
 
-    sys.stderr.write("pushing bigstore metadata...")
-    g().push("origin", "refs/notes/bigstore")
-    sys.stderr.write("done\n")
+    if g().diff('refs/notes/bigstore', 'refs/notes/bigstore-remote'):
+        # Only push if something changed (we may not have write access)
+        sys.stderr.write("pushing bigstore metadata...")
+        g().push("origin", "refs/notes/bigstore")
+        sys.stderr.write("done\n")
 
 
 def filter_clean():
