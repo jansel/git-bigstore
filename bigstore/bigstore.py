@@ -184,6 +184,7 @@ def pathnames():
 
 
 def push():
+    assert_initialized()
     try:
         sys.stderr.write("pulling bigstore metadata...")
         g().fetch("origin", "refs/notes/bigstore:refs/notes/bigstore-remote", "--force")
@@ -273,6 +274,7 @@ def push():
 
 
 def pull():
+    assert_initialized()
     try:
         sys.stderr.write("pulling bigstore metadata...")
         g().fetch("origin", "refs/notes/bigstore:refs/notes/bigstore-remote", "--force")
@@ -329,10 +331,17 @@ def pull():
                         break
 
     if g().diff('refs/notes/bigstore', 'refs/notes/bigstore-remote'):
-        # Only push if something changed (we may not have write access)
-        sys.stderr.write("pushing bigstore metadata...")
-        g().push("origin", "refs/notes/bigstore")
-        sys.stderr.write("done\n")
+        # Only push if something changed
+        sys.stderr.write('pushing bigstore metadata...')
+        try:
+            g().push('origin', 'refs/notes/bigstore')
+            sys.stderr.write('done\n')
+        except git.exc.GitCommandError as e:
+            if e.stderr and 'read only' in e.stderr:
+                sys.stderr.write('read only\n')
+            else:
+                # An error pushing during a pull is not fatal
+                sys.stderr.write('ERROR\n')
 
 
 def filter_clean():
@@ -536,3 +545,17 @@ def init():
     g().config("filter.bigstore-compress.smudge", "git-bigstore filter-smudge")
 
     mkdir_p(object_directory(default_hash_function_name))
+
+
+def assert_initialized():
+    """
+    Check the make sure `git bigstore init` has been called.
+    If not then print an error and exit(1)
+    """
+    try:
+        if g().config('filter.bigstore.clean') == 'git-bigstore filter-clean':
+            return  # repo config looks good
+    except git.exc.GitCommandError:
+        pass
+    sys.stderr.write('fatal: You must run `git bigstore init` first.\n')
+    sys.exit(1)
