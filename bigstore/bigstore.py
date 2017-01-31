@@ -448,6 +448,8 @@ def log():
     entries = []
     for tree in trees:
         entry = g().ls_tree('-r', tree, filename)
+        if entry.strip() == '':
+            continue
         metadata, filename = entry.split('\t')
         _, _, sha = metadata.split(' ')
         try:
