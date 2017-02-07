@@ -235,15 +235,12 @@ def push():
                         if not backend.exists(hexdigest):
                             with open(object_filename(hash_function_name, hexdigest)) as file:
                                 if compress:
-                                    with tempfile.NamedTemporaryFile() as compressed_file:
+                                    with tempfile.TemporaryFile() as compressed_file:
                                         compressor = bz2.BZ2Compressor()
-                                        while True:
-                                            chunk = file.read(8192)
-                                            if not chunk:
-                                                break
-                                            compressed_file.write(compressor.compress(chunk))
+                                        for line in file:
+                                            compressed_file.write(compressor.compress(line))
+
                                         compressed_file.write(compressor.flush())
-                                        compressed_file.flush()
                                         compressed_file.seek(0)
 
                                         sys.stderr.write("compressed!\n")
@@ -310,17 +307,14 @@ def pull():
                                 backend = backend_for_name(backend_name)
                                 if backend.exists(hexdigest):
                                     if action == "upload-compressed":
-                                        with tempfile.NamedTemporaryFile() as compressed_file:
+                                        with tempfile.TemporaryFile() as compressed_file:
                                             backend.pull(compressed_file, hexdigest, cb=ProgressPercentage(filename))
                                             compressed_file.seek(0)
 
                                             decompressor = bz2.BZ2Decompressor()
                                             with open(filename, 'wb') as file:
-                                                while True:
-                                                    chunk = compressed_file.read(8192)
-                                                    if not chunk:
-                                                        break
-                                                    file.write(decompressor.decompress(chunk))
+                                                for line in compressed_file:
+                                                    file.write(decompressor.decompress(line))
                                     else:
                                         with open(filename, 'wb') as file:
                                             backend.pull(file, hexdigest, cb=ProgressPercentage(filename))
